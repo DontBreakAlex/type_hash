@@ -1,10 +1,11 @@
 use std::borrow::ToOwned;
-use std::hash::Hasher;
+use core::hash::Hasher;
+use xxhash_rust::xxh64::Xxh64;
 
 /// A hash of a type's structure
 pub trait TypeHash {
     fn type_hash() -> u64 {
-        let mut hasher = fnv::FnvHasher::default();
+        let mut hasher = Xxh64::default(); // Fix the code
         Self::write_hash(&mut hasher);
         hasher.finish()
     }
