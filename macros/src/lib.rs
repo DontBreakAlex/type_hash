@@ -29,7 +29,7 @@ fn type_hash_struct(ident: &Ident, generics: &Generics, data: &DataStruct) -> To
     let (impl_generics, ty_generics, where_clause) = split_generics(generics);
     quote! {
         impl#impl_generics type_hash::TypeHash for #ident#ty_generics #where_clause {
-            fn write_hash(hasher: &mut impl std::hash::Hasher) {
+            fn write_hash(hasher: &mut impl std::io::Write) {
                 hasher.write(#name.as_bytes());
                 #(#fields)*
             }
@@ -52,7 +52,7 @@ fn type_hash_enum(ident: &Ident, generics: &Generics, data: &DataEnum) -> TokenS
     });
     quote! {
         impl#impl_generics type_hash::TypeHash for #ident#ty_generics #where_clause{
-            fn write_hash(hasher: &mut impl std::hash::Hasher) {
+            fn write_hash(hasher: &mut impl std::io::Write) {
                 hasher.write(#name.as_bytes());
                 #(#variants)*
             }
