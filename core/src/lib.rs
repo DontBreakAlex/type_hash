@@ -2,13 +2,17 @@ use std::borrow::ToOwned;
 use core::hash::Hasher;
 use xxhash_rust::xxh64::Xxh64;
 use std::io::Write;
+use std::fs::File;
 
 /// A hash of a type's structure
 pub trait TypeHash {
     fn type_hash() -> u64 {
         let mut hasher = Vec::new();
         Self::write_hash(&mut hasher);
+        #[cfg(not(target_os = "android"))]
         println!("{}", String::from_utf8(hasher).unwrap());
+        #[cfg(target_os = "android")]
+        File::create("/data/data/app.sidely.crm/app_flutter/hash.txt").unwrap().write_all(&hasher).unwrap();
         0
     }
 
