@@ -1,28 +1,30 @@
 use std::borrow::ToOwned;
-use core::hash::Hasher;
-use xxhash_rust::xxh64::Xxh64;
+use const_sha1::ConstSlice;
+use xxhash_rust::const_xxh3::xxh3_64;
 
 /// A hash of a type's structure
 pub trait TypeHash {
     fn type_hash() -> u64 {
-        let mut hasher = Xxh64::default(); // Fix the code
-        Self::write_hash(&mut hasher);
-        hasher.finish()
+        let slice = Self::write_hash(ConstSlice::new());
+        let bytes = slice.as_slice();
+        xxh3_64(bytes)
     }
 
     /// Write the structure of the type to the hasher
-    fn write_hash(hasher: &mut impl Hasher);
+    fn write_hash(hasher: const_sha1::ConstSlice) -> const_sha1::ConstSlice;
 }
 
 macro_rules! impl_type_hash {
     ($( $($ty: ident)::* $(<$($l: lifetime,)* $($T: ident $(: $(? $Sized: ident)? $($(+)? $B: ident)*)?),+>)?,)*) => {
         $(
             impl $(<$($l,)* $($T: $crate::TypeHash $($(+ ?$Sized)? $(+ $B)*)? ),*>)? TypeHash for $($ty)::* $(<$($l,)* $($T),+>)? {
-                fn write_hash(hasher: &mut impl std::hash::Hasher) {
-                    hasher.write(stringify!($($ty)::*).as_bytes());
+                fn write_hash(hasher: const_sha1::ConstSlice) -> const_sha1::ConstSlice {
+                    let hasher = hasher.push_slice(stringify!($($ty)::*).as_bytes());
                     $($(
-                        $T::write_hash(hasher);
+                        let hasher = $T::write_hash(hasher);
                     )+)?
+
+                    hasher
                 }
             }
         )*
@@ -145,11 +147,12 @@ impl_type_hash!(
 macro_rules! impl_type_hash_tuple {
     (($($T: ident,)*)) => {
         impl <$($T: $crate::TypeHash),*> TypeHash for ($($T,)*) {
-            fn write_hash(hasher: &mut impl std::hash::Hasher) {
-                hasher.write(b"()");
+            fn write_hash(hasher: const_sha1::ConstSlice) -> const_sha1::ConstSlice {
+                let hasher = hasher.push_slice(b"()");
                 $(
-                    $T::write_hash(hasher);
+                    let hasher = $T::write_hash(hasher);
                 )*
+                hasher
             }
         }
     };
@@ -172,10 +175,10 @@ impl_type_hash_tuple!((A, B, C, D, E, F, G, H, I, J, K, L,));
 macro_rules! impl_type_hash_array {
     ([$T: ident; $n: literal]) => {
         impl<$T: $crate::TypeHash> TypeHash for [$T; $n] {
-            fn write_hash(hasher: &mut impl std::hash::Hasher) {
-                hasher.write(b"[;]");
-                hasher.write_usize($n);
-                $T::write_hash(hasher);
+            fn write_hash(hasher: const_sha1::ConstSlice) -> const_sha1::ConstSlice {
+                let hasher = hasher.push_slice(b"[;]");
+                let hasher = hasher.push_slice(&[$n as u8]);
+                $T::write_hash(hasher)
             }
         }
     };
@@ -186,19 +189,7 @@ impl_type_hash_array!([T; 1]);
 impl_type_hash_array!([T; 2]);
 impl_type_hash_array!([T; 3]);
 impl_type_hash_array!([T; 4]);
-impl_type_hash_array!([T; 5]);
-impl_type_hash_array!([T; 6]);
-impl_type_hash_array!([T; 7]);
-impl_type_hash_array!([T; 8]);
-impl_type_hash_array!([T; 9]);
-impl_type_hash_array!([T; 10]);
-impl_type_hash_array!([T; 11]);
-impl_type_hash_array!([T; 12]);
-impl_type_hash_array!([T; 13]);
-impl_type_hash_array!([T; 14]);
-impl_type_hash_array!([T; 15]);
-impl_type_hash_array!([T; 16]);
-impl_type_hash_array!([T; 17]);
+impl_type_hash_array!([T; 5]);let hasher = 
 impl_type_hash_array!([T; 18]);
 impl_type_hash_array!([T; 19]);
 impl_type_hash_array!([T; 20]);
@@ -216,36 +207,36 @@ impl_type_hash_array!([T; 31]);
 impl_type_hash_array!([T; 32]);
 
 impl<T: TypeHash + ?Sized> TypeHash for *const T {
-    fn write_hash(hasher: &mut impl Hasher) {
-        hasher.write(b"*const");
-        T::write_hash(hasher);
+    fn write_hash(hasher: const_sha1::ConstSlice) -> const_sha1::ConstSlice{
+        let hasher = hasher.push_slice(b"*const");
+        T::write_hash(hasher)
     }
 }
 
 impl<T: TypeHash + ?Sized> TypeHash for *mut T {
-    fn write_hash(hasher: &mut impl Hasher) {
-        hasher.write(b"*mut");
-        T::write_hash(hasher);
+    fn write_hash(hasher: const_sha1::ConstSlice) -> const_sha1::ConstSlice{
+        let hasher = hasher.push_slice(b"*mut");
+        T::write_hash(hasher)
     }
 }
 
 impl<T: TypeHash> TypeHash for [T] {
-    fn write_hash(hasher: &mut impl Hasher) {
-        hasher.write(b"[]");
-        T::write_hash(hasher);
+    fn write_hash(hasher: const_sha1::ConstSlice) -> const_sha1::ConstSlice{
+        let hasher = hasher.push_slice(b"[]");
+        T::write_hash(hasher)
     }
 }
 
 impl<'a, T: TypeHash + ?Sized> TypeHash for &'a T {
-    fn write_hash(hasher: &mut impl Hasher) {
-        hasher.write(b"&");
-        T::write_hash(hasher);
+    fn write_hash(hasher: const_sha1::ConstSlice) -> const_sha1::ConstSlice{
+        let hasher = hasher.push_slice(b"&");
+        T::write_hash(hasher)
     }
 }
 
 impl<'a, T: TypeHash + ?Sized> TypeHash for &'a mut T {
-    fn write_hash(hasher: &mut impl Hasher) {
-        hasher.write(b"&mut");
-        T::write_hash(hasher);
+    fn write_hash(hasher: const_sha1::ConstSlice) -> const_sha1::ConstSlice{
+        let hasher = hasher.push_slice(b"&mut");
+        T::write_hash(hasher)
     }
 }
