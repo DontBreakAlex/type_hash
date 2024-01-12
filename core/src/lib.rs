@@ -173,7 +173,7 @@ macro_rules! impl_type_hash_array {
         impl<$T: $crate::TypeHash> TypeHash for [$T; $n] {
             fn write_hash(hasher: &mut impl std::hash::Hasher) {
                 hasher.write(b"[;]");
-                hasher.write_usize($n);
+                hasher.write_u64($n);
                 $T::write_hash(hasher);
             }
         }
